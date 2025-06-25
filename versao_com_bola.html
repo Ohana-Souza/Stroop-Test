@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Teste Stroop Multilíngue</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #f2f2f2;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .form-container {
+            width: 100%;
+            max-width: 480px;
+            background: #fff;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative; 
+            min-height: 300px;
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; 
+        }
+        h2, h3 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        #startBtn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.2rem;
+            border: none;
+            background: #4CAF50;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        #question-container {
+            position: relative;
+            width: 100%;
+            height: 250px; /* Mantém a altura fixa para evitar pulos no layout */
+            display: none; /* Controlado via JS */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Centraliza verticalmente todos os elementos */
+            padding: 1rem 0; 
+            box-sizing: border-box;
+        }
+        #look-here-circle {
+            width: 80px; 
+            height: 80px;
+            background-color: black;
+            border-radius: 50%;
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: none; /* Controlado via JS */
+            margin-bottom: 1rem; /* Adicionado para separar o círculo da palavra, se aparecerem juntos */
+        }
+        #word {
+            font-weight: bold;
+            text-align: center;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            box-sizing: border-box;
+            font-size: 2rem;
+            display: none; /* Controlado via JS */
+        }
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            justify-content: center;
+            width: 100%;
+            margin-top: 1rem; /* Espaçamento entre a palavra/círculo e as opções */
+            display: none; /* Controlado via JS */
+        }
+        .options button {
+            flex: 1 1 45%; 
+            font-size: 1.1rem;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            background: #4285f4;
+            color: #fff;
+            cursor: pointer;
+            text-transform: capitalize;
+            min-width: 120px;
+        }
+        canvas#resultChart {
+            margin-top: 1.5rem;
+            width: 100% !important;
+            height: 300px !important;
+        }
+        #errorMsg {
+            text-align: center;
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Teste Stroop Multilíngue</h2>
+        <button id="startBtn" onclick="startTest()">Iniciar Teste</button>
+
+        <div id="question-container" style="display:none;">
+            <div id="look-here-circle">OLHE AQUI</div>
+            <div id="word"></div>
+            <div id="options" class="options"></div> 
+            <div id="errorMsg"></div>
+        </div>
+
+        <div id="result-container" style="display:none;">
+            <h3>Tempo Médio por Idioma</h3>
+            <canvas id="resultChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Por favor, CONFIRME ESTAS CHAVES NO SEU PAINEL SUPABASE!
+        const SUPABASE_URL = "https://agruqprerafpnnmtsuac.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFncnVxcHJlcmFmcG5ubXRzdWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1ODAwMTgsImV4cCI6MjA2NTE1NjAxOH0.Js7BPWBpLMtEioH8NCciNNypF2ZDUnxqDUCSYSLpVF8";
+
+        const perguntas = [
+            { palavra: "AZUL", cor: "verde", idioma: "Português" },
+            { palavra: "VERMELHO", cor: "azul", idioma: "Português" },
+            { palavra: "AMARELO", cor: "rosa", idioma: "Português" },
+            { palavra: "VERDE", cor: "marrom", idioma: "Português" },
+            { palavra: "BLAU", cor: "vermelho", idioma: "Alemão" },
+            { palavra: "GRÜN", cor: "amarelo", idioma: "Alemão" },
+            { palavra: "ROT", cor: "azul", idioma: "Alemão" },
+            { palavra: "あお", cor: "vermelho", idioma: "Japonês" },
+            { palavra: "みどり", "cor": "amarelo", idioma: "Japonês" },
+            { palavra: "しろ", cor: "azul", idioma: "Japonês" }
+        ];
+
+        const cores = {
+            vermelho: "red",
+            azul: "blue",
+            amarelo: "yellow",
+            verde: "green",
+            rosa: "hotpink",
+            marrom: "#8B4513"
+        };
+
+        let perguntasAleatorias = [], index = 0, startTime = 0;
+        let tempos = [], palavrasRespondidas = [], idiomasUsados = [], chart = null;
+        let ultimaCor = "";
+        let currentQuestion = null;
+
+        function startTest() {
+            perguntasAleatorias = perguntas.sort(() => Math.random() - 0.5);
+            index = 0;
+            tempos = [];
+            palavrasRespondidas = [];
+            idiomasUsados = [];
+            document.getElementById("startBtn").style.display = "none";
+            document.getElementById("question-container").style.display = "flex"; 
+            document.getElementById("result-container").style.display = "none";
+            document.getElementById("errorMsg").textContent = "";
+
+            // Garante que todos os elementos do question-container estão escondidos no início
+            document.getElementById("word").style.display = "none";
+            document.getElementById("options").style.display = "none";
+            document.getElementById("look-here-circle").style.display = "none"; 
+
+            mostrarProxima(); 
+        }
+
+        function mostrarProxima() {
+            document.getElementById("errorMsg").textContent = "";
+            
+            // Esconde todos os elementos no início de CADA fase (círculo, palavra, opções)
+            document.getElementById("look-here-circle").style.display = "none";
+            document.getElementById("word").style.display = "none";     
+            document.getElementById("options").style.display = "none"; 
+
+            if (index >= perguntasAleatorias.length) {
+                salvarDados();
+                return;
+            }
+
+            let p;
+            do {
+                p = perguntasAleatorias[index];
+            } while (cores[p.cor] === ultimaCor && ++index < perguntasAleatorias.length);
+
+            if (!p) {
+                salvarDados();
+                return;
+            }
+            currentQuestion = p; 
+            ultimaCor = cores[p.cor];
+
+            // 1. Mostra o círculo "OLHE AQUI" por 3 segundos
+            document.getElementById("look-here-circle").style.display = "flex"; 
+            
+            setTimeout(() => {
+                // 2. Mostra a palavra JUNTO com o círculo por 1 segundo
+                const wordElement = document.getElementById("word");
+                wordElement.textContent = p.palavra;
+                wordElement.style.color = cores[p.cor];
+                wordElement.style.display = "block"; // A palavra aparece
+
+                // O círculo permanece visível aqui
+                
+                setTimeout(() => {
+                    // 3. Esconde o círculo e a palavra, e mostra as opções
+                    document.getElementById("look-here-circle").style.display = "none"; // Círculo desaparece
+                    wordElement.style.display = "none"; // Palavra desaparece
+
+                    const opcoes = Object.keys(cores).filter(c => c !== p.cor)
+                        .sort(() => Math.random() - 0.5).slice(0, 3)
+                        .concat(p.cor).sort(() => Math.random() - 0.5);
+
+                    const container = document.getElementById("options");
+                    container.innerHTML = ""; 
+                    opcoes.forEach(corTexto => {
+                        const btn = document.createElement("button");
+                        btn.textContent = corTexto;
+                        btn.onclick = () => {
+                            document.getElementById("errorMsg").textContent = ""; 
+                            if (corTexto !== currentQuestion.cor) { 
+                                document.getElementById("errorMsg").textContent = "Resposta incorreta. Tente novamente.";
+                                return; 
+                            }
+                            tempos.push((Date.now() - startTime) / 1000);
+                            palavrasRespondidas.push(currentQuestion.palavra);
+                            idiomasUsados.push(currentQuestion.idioma);
+                            index++;
+                            mostrarProxima();
+                        };
+                        container.appendChild(btn);
+                    });
+                    document.getElementById("options").style.display = "flex"; 
+                    startTime = Date.now(); 
+
+                }, 1000); // Círculo e palavra visíveis juntos por 1 segundo (total 3s + 1s = 4s desde o início do círculo)
+
+            }, 3000); // Círculo sozinho visível por 3 segundos
+        }
+
+        async function salvarDados() {
+            const nome = prompt("Digite seu nome:");
+            if (!nome) {
+                alert("Nome obrigatório para salvar os resultados.");
+                mostrarResultados(); 
+                return;
+            }
+
+            // Esconde todos os elementos da pergunta ao salvar/finalizar
+            document.getElementById("look-here-circle").style.display = "none"; 
+            document.getElementById("word").style.display = "none"; 
+            document.getElementById("options").style.display = "none"; 
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/respostas`, { 
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        apikey: SUPABASE_KEY,
+                        Authorization: `Bearer ${SUPABASE_KEY}`
+                    },
+                    body: JSON.stringify({
+                        nome, 
+                        tempos,
+                        palavras: palavrasRespondidas, 
+                        idiomas: idiomasUsados
+                    })
+                });
+
+                if (!res.ok) {
+                    let errText = await res.text();
+                    throw new Error(errText || "Erro desconhecido ao salvar");
+                }
+                console.log("Dados salvos com sucesso!");
+                mostrarResultados();
+            } catch (e) {
+                document.getElementById("errorMsg").textContent = "Erro ao salvar dados: " + e.message;
+                console.error("Erro ao salvar dados:", e);
+            }
+        }
+
+        async function mostrarResultados() {
+            document.getElementById("question-container").style.display = "none"; 
+            document.getElementById("startBtn").style.display = "block"; 
+            document.getElementById("result-container").style.display = "block"; 
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/respostas?select=tempos,idiomas`, {
+                    headers: {
+                        apikey: SUPABASE_KEY,
+                        Authorization: `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                const data = await res.json();
+                console.log("Dados recebidos do Supabase para o gráfico:", data); 
+
+                if (!data.length) {
+                    document.getElementById("errorMsg").textContent = "Nenhum dado encontrado para gerar o gráfico.";
+                    return; 
+                }
+
+                const tempoPorIdioma = {}, contPorIdioma = {};
+                data.forEach(item => {
+                    if (Array.isArray(item.tempos) && Array.isArray(item.idiomas) && item.tempos.length === item.idiomas.length) {
+                        item.tempos.forEach((t, i) => {
+                            const idioma = item.idiomas[i];
+                            if (["Português", "Alemão", "Japonês"].includes(idioma)) {
+                                tempoPorIdioma[idioma] = (tempoPorIdioma[idioma] || 0) + t;
+                                contPorIdioma[idioma] = (contPorIdioma[idioma] || 0) + 1;
+                            }
+                        });
+                    } else {
+                        console.warn("Dados inconsistentes em uma linha do Supabase:", item); 
+                    }
+                });
+
+                console.log("Tempos por idioma processados:", tempoPorIdioma); 
+                console.log("Contagens por idioma processadas:", contPorIdioma); 
+
+                const idiomas = Object.keys(tempoPorIdioma);
+                const medias = idiomas.map(id => +(tempoPorIdioma[id] / contPorIdioma[id]).toFixed(2));
+                
+                console.log("Idiomas para o gráfico:", idiomas); 
+                console.log("Médias para o gráfico:", medias); 
+
+                if (idiomas.length > 0 && medias.length > 0) {
+                    setTimeout(() => {
+                        desenharGrafico(idiomas, medias);
+                    }, 100); 
+                } else {
+                    document.getElementById("errorMsg").textContent = "Dados insuficientes após filtragem para gerar o gráfico.";
+                }
+
+            } catch (e) {
+                console.error("Erro ao buscar dados para o gráfico:", e);
+                document.getElementById("errorMsg").textContent = "Erro ao carregar dados do gráfico: " + e.message;
+            }
+        }
+
+        function desenharGrafico(labels, dados) {
+            const canvas = document.getElementById("resultChart");
+            if (!canvas) {
+                console.error("Elemento canvas #resultChart não encontrado!");
+                document.getElementById("errorMsg").textContent = "Erro: Elemento do gráfico não encontrado.";
+                return;
+            }
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                console.error("Não foi possível obter o contexto 2D do canvas!");
+                document.getElementById("errorMsg").textContent = "Erro: Não foi possível preparar o gráfico.";
+                return;
+            }
+
+            const parentContainer = canvas.parentElement; 
+            if (parentContainer) {
+                if (parentContainer.offsetWidth > 0 && parentContainer.offsetHeight > 0) {
+                    canvas.width = parentContainer.offsetWidth;
+                    canvas.height = 300; 
+                    console.log(`Canvas dimensions set to: ${canvas.width}x${canvas.height}`);
+                } else {
+                    canvas.width = 450; 
+                    canvas.height = 300;
+                    console.warn("Dimensões do container pai não disponíveis, usando dimensões padrão para o canvas.");
+                }
+            } else {
+                canvas.width = 450;
+                canvas.height = 300;
+                console.warn("Container pai não encontrado, usando dimensões padrão para o canvas.");
+            }
+            
+            if (chart) chart.destroy(); 
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Tempo Médio (segundos)', 
+                        data: dados,
+                        backgroundColor: 'rgba(66,133,244,0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, 
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 0.5 },
+                            title: { 
+                                display: true,
+                                text: 'Tempo (segundos)'
+                            }
+                        },
+                        x: { 
+                            title: {
+                                display: true,
+                                text: 'Idioma'
+                            }
+                        }
+                    },
+                    plugins: { 
+                        legend: {
+                            display: false 
+                        },
+                        title: {
+                            display: true,
+                            text: 'Tempo Médio de Resposta por Idioma',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            });
+            console.log("Gráfico desenhado com sucesso!");
+        }
+    </script>
+</body>
+</html>
