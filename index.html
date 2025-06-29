@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Teste Stroop Multilíngue</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       margin: 0;
@@ -17,29 +17,40 @@
     }
     .form-container {
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
       background: #fff;
       padding: 1rem;
       border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
     }
     h2, h3 {
       text-align: center;
       color: #333;
     }
-    #startBtn {
+    button {
       width: 100%;
       padding: 1rem;
-      font-size: 1.2rem;
+      font-size: 1.05rem;
       border: none;
       background: #4CAF50;
       color: #fff;
       border-radius: 8px;
       cursor: pointer;
-      margin-bottom: 1rem;
+      margin-top: 1rem;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .options button {
+      background: #4285f4;
+    }
+    .options button:hover {
+      background: #3a75d1;
     }
     #word {
-      font-size: 3rem;
+      font-size: 2.4rem;
       font-weight: bold;
       text-align: center;
       margin: 1rem 0;
@@ -47,6 +58,9 @@
       background: #fff;
       border-radius: 8px;
       min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .options {
       display: flex;
@@ -56,208 +70,457 @@
     }
     .options button {
       flex: 1 1 45%;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       padding: 0.8rem;
       border: none;
       border-radius: 8px;
-      background: #4285f4;
       color: #fff;
       cursor: pointer;
       text-transform: capitalize;
     }
-    canvas#resultChart {
-      margin-top: 1.5rem;
-      width: 100% !important;
-      height: 300px !important;
+    canvas {
+      margin: 1rem 0;
+      max-height: 340px;
+    }
+    .nav-graphs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+    .nav-graphs button {
+      width: auto;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      background-color: #007bff;
+    }
+    .nav-graphs button:hover {
+      background-color: #0056b3;
+    }
+    input[type="text"] {
+      width: calc(100% - 2rem);
+      padding: 0.8rem 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    #errorMsg {
+      color: red;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    /* Estilo para as informações do tempo de reação */
+    .reaction-info {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      text-align: justify;
+      margin-top: 1rem;
+      background: #f9f9f9;
+      padding: 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #eee;
+    }
+    .reaction-info strong {
+        color: #333;
     }
   </style>
 </head>
 <body>
-  <div class="form-container">
+  <div id="intro" class="form-container">
     <h2>Teste Stroop Multilíngue</h2>
-    <button id="startBtn" onclick="startTest()">Iniciar Teste</button>
-    <div id="question-container" style="display:none;">
+    <p style="text-align:center; font-size:1.1rem;">Olá! Leia as instruções a seguir para compreender o teste.</p>
+    <button id="nextBtn1">Próximo ➔</button>
+  </div>
+
+  <div id="instructions" class="form-container" style="display:none;">
+    <h2>Instruções</h2>
+    <p style="font-size:1rem; line-height:1.4;">
+      Serão apresentadas 20 palavras, cada uma escrita em uma cor. Clique no **botão que indica a cor da FONTE** o mais rápido possível. Não há penalidade por erro — avance para a próxima palavra mesmo que escolha a cor incorreta.
+    </p>
+    <p style="font-size:1rem; line-height:1.4;">
+      Exemplo: se aparecer a palavra "AZUL" escrita em vermelho, a resposta correta é *vermelho*.
+    </p>
+    <button id="startBtn">Iniciar Teste ➔</button>
+  </div>
+
+  <div id="test" class="form-container" style="display:none;">
+    <h2>Teste Stroop Multilíngue</h2>
+
+    <div id="question-container">
       <div id="word"></div>
       <div id="options" class="options"></div>
     </div>
-    <div id="result-container" style="display:none;">
-      <h3>Tempo Médio por Idioma</h3>
-      <canvas id="resultChart"></canvas>
+  </div>
+
+  <div id="results" class="form-container" style="display:none;">
+    <h2>Resultados</h2>
+
+
+    <input type="text" id="userName" placeholder="Digite seu nome" required>
+    <button id="saveResultsBtn">Salvar Resultados</button>
+    <p id="errorMsg" style="display:none;"></p>
+
+    <div id="graph-accuracy" style="display:none;">
+      <h3>Taxa de acertos por idioma (%)</h3>
+      <canvas id="chartAccuracy"></canvas>
     </div>
+
+    <div id="graph-reaction" style="display:none;">
+      <h3>Tempo médio de reação (s)</h3>
+      <canvas id="chartReaction"></canvas>
+    </div>
+
+    <div class="nav-graphs">
+      <button id="btnShowAccuracy" style="display:none;">Taxa de acerto</button>
+      <button id="btnShowReaction" style="display:none;">Tempo de reação</button>
+    </div>
+
+    <button id="restartBtn" style="display:none;">Reiniciar Teste ➔</button>
   </div>
 
   <script>
+    /* ========= CONFIGURAÇÃO SUPABASE ========= */
     const SUPABASE_URL = "https://agruqprerafpnnmtsuac.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFncnVxcHJlcmFmcG5ubXRzdWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1ODAwMTgsImV4cCI6MjA2NTE1NjAxOH0.Js7BPWBpLMtEioH8NCciNNypF2ZDUnxqDUCSYSLpVF8";
-
+    // ***ATENÇÃO***: Verifique se esta é a chave **exata** do seu projeto Supabase.
+    // A chave correta finaliza com "VVF8". Por favor, confirme no seu painel Supabase.
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFncnVxcHJlcmFmcG5ubXRzdWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1ODAwMTgsImV4cCI6MjA2NTE1NjAxOH0.Js7BPWBpLMtEioH8NCciNNypF2ZDUnxqDUCSYSLpVF8'
+    /* ========= LISTA DE 20 QUESTÕES ========= */
     const perguntas = [
-      { palavra: "あお", cor: "vermelho", idioma: "Japonês" },
-      { palavra: "みどり", cor: "amarelo", idioma: "Japonês" },
-      { palavra: "しろ", cor: "azul", idioma: "Japonês" },
-      { palavra: "AZUL", cor: "verde", idioma: "Português" },
-      { palavra: "VERMELHO", cor: "azul", idioma: "Português" },
-      { palavra: "AMARELO", cor: "rosa", idioma: "Português" },
-      { palavra: "VERDE", cor: "marrom", idioma: "Português" },
-      { palavra: "ピンク", cor: "vermelho", idioma: "Japonês" },
-      { palavra: "ちゃいろ", cor: "azul", idioma: "Japonês" },
-      { palavra: "ROJO", cor: "verde", idioma: "Espanhol" },
-      { palavra: "AMARILLO", cor: "vermelho", idioma: "Espanhol" },
-      { palavra: "VERDE", cor: "rosa", idioma: "Espanhol" },
-      { palavra: "BLEU", cor: "marrom", idioma: "Francês" },
-      { palavra: "JAUNE", cor: "verde", idioma: "Francês" },
-      { palavra: "ROUGE", cor: "azul", idioma: "Francês" },
-      { palavra: "RED", cor: "amarelo", idioma: "Inglês" },
-      { palavra: "YELLOW", cor: "verde", idioma: "Inglês" },
-      { palavra: "GREEN", cor: "vermelho", idioma: "Inglês" },
-      { palavra: "BROWN", cor: "rosa", idioma: "Inglês" },
-      { palavra: "PINK", cor: "marrom", idioma: "Inglês" }
+      { palavra: "AZUL", cor: "verde", idioma: "Português", opcoes: ["verde","azul","vermelho","amarelo"] },
+      { palavra: "VERMELHO", cor: "azul", idioma: "Português", opcoes: ["azul","vermelho","verde","amarelo"] },
+      { palavra: "AMARELO", cor: "rosa", idioma: "Português", opcoes: ["rosa","amarelo","azul","vermelho"] },
+      { palavra: "VERDE", cor: "marrom", idioma: "Português", opcoes: ["marrom","verde","vermelho","azul"] },
+      { palavra: "ROSA", cor: "vermelho", idioma: "Português", opcoes: ["vermelho","rosa","azul","verde"] },
+      { palavra: "MARROM", cor: "amarelo", idioma: "Português", opcoes: ["amarelo","marrom","verde","azul"] },
+      { palavra: "BLAU", cor: "vermelho", idioma: "Alemão", opcoes: ["vermelho","azul","verde","amarelo"] },
+      { palavra: "GRÜN", cor: "amarelo", idioma: "Alemão", opcoes: ["amarelo","verde","vermelho","azul"] },
+      { palavra: "ROT", cor: "azul", idioma: "Alemão", opcoes: ["azul","vermelho","verde","amarelo"] },
+      { palavra: "WEISS", cor: "verde", idioma: "Alemão", opcoes: ["verde","branco","vermelho","azul"] },
+      { palavra: "SCHWARZ", cor: "rosa", idioma: "Alemão", opcoes: ["rosa","preto","azul","verde"] },
+      { palavra: "あお", cor: "vermelho", idioma: "Japonês", opcoes: ["vermelho","azul","verde","amarelo"] },
+      { palavra: "あか", cor: "azul", idioma: "Japonês", opcoes: ["azul","vermelho","verde","amarelo"] },
+      { palavra: "みどり", cor: "rosa", idioma: "Japonês", opcoes: ["rosa","verde","amarelo","azul"] },
+      { palavra: "きいろ", cor: "marrom", idioma: "Japonês", opcoes: ["marrom","amarelo","azul","verde"] },
+      { palavra: "しろ", cor: "verde", idioma: "Japonês", opcoes: ["verde","branco","vermelho","azul"] },
+      { palavra: "PRETO", cor: "amarelo", idioma: "Português", opcoes: ["amarelo","preto","verde","azul"] },
+      { palavra: "BRANCO", cor: "vermelho", idioma: "Português", opcoes: ["vermelho","branco","azul","verde"] },
+      { palavra: "CINZA", cor: "azul", idioma: "Português", opcoes: ["azul","cinza","vermelho","verde"] },
+      { palavra: "LARANJA", cor: "verde", idioma: "Português", opcoes: ["verde","laranja","azul","vermelho"] }
     ];
 
+    /* ========= MAPA DE CORES ========= */
     const cores = {
-      vermelho: "red",
-      azul: "blue",
-      amarelo: "yellow",
-      verde: "green",
-      rosa: "hotpink",
-      marrom: "#8B4513"
+      vermelho: "red", azul: "blue", amarelo: "yellow", verde: "green", rosa: "hotpink", marrom: "#8B4513",
+      preto: "black", branco: "white", cinza: "gray", laranja: "orange"
     };
 
-    let perguntasAleatorias = [], index = 0, startTime = 0;
-    let tempos = [], palavrasRespondidas = [], idiomasUsados = [], chart = null;
+    /* ========= VARIÁVEIS GLOBAIS ========= */
+    let ordem = [], idx = 0, start = 0;
+    let tempos = [], idiomas = [], acertos = [];
+    let chartAcc = null, chartReact = null;
 
-    function startTest() {
-      perguntasAleatorias = perguntas.sort(() => Math.random() - 0.5);
-      index = 0;
-      tempos = [];
-      palavrasRespondidas = [];
-      idiomasUsados = [];
-      document.getElementById("startBtn").style.display = "none";
-      document.getElementById("question-container").style.display = "block";
-      document.getElementById("result-container").style.display = "none";
-      mostrarProxima();
+    /* ========= REFERÊNCIAS DE ELEMENTOS HTML ========= */
+    const introScreen = document.getElementById('intro');
+    const instructionsScreen = document.getElementById('instructions');
+    const testScreen = document.getElementById('test');
+    const resultsScreen = document.getElementById('results');
+
+    const nextBtn1 = document.getElementById('nextBtn1');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const saveResultsBtn = document.getElementById('saveResultsBtn');
+    const userNameInput = document.getElementById('userName');
+    const errorMsgElement = document.getElementById('errorMsg');
+
+    const graphAccuracyDiv = document.getElementById('graph-accuracy');
+    const graphReactionDiv = document.getElementById('graph-reaction');
+    const btnShowAccuracy = document.getElementById('btnShowAccuracy');
+    const btnShowReaction = document.getElementById('btnShowReaction');
+
+    /* ========= TRANSIÇÕES DE TELAS E EVENT LISTENERS ========= */
+    nextBtn1.onclick = () => {
+      introScreen.style.display = 'none';
+      instructionsScreen.style.display = 'block';
+      console.log('Botão Próximo clicado: Transição para Instruções.');
+    };
+
+    startBtn.onclick = () => {
+      instructionsScreen.style.display = 'none';
+      testScreen.style.display = 'block';
+      iniciarTeste();
+      console.log('Botão Iniciar Teste clicado: Teste iniciado.');
+    };
+
+    restartBtn.onclick = () => location.reload();
+
+    saveResultsBtn.onclick = () => {
+      salvarResultadosNoSupabase();
+    };
+
+    btnShowAccuracy.onclick = () => {
+      graphAccuracyDiv.style.display = 'block';
+      graphReactionDiv.style.display = 'none';
+    };
+
+    btnShowReaction.onclick = () => {
+      graphAccuracyDiv.style.display = 'none';
+      graphReactionDiv.style.display = 'block';
+    };
+
+    // Função auxiliar para embaralhar um array (Fisher-Yates shuffle)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
     }
 
-    function mostrarProxima() {
-      if (index >= perguntasAleatorias.length) {
-        salvarDados();
+    /* ========= FUNÇÃO PRINCIPAL DO TESTE ========= */
+    function iniciarTeste() {
+      ordem = [...perguntas].sort(() => Math.random() - 0.5);
+      idx = 0;
+      tempos = [];
+      idiomas = [];
+      acertos = [];
+      renderPergunta();
+    }
+
+    function renderPergunta() {
+      if (idx >= ordem.length) {
+        testScreen.style.display = 'none';
+        resultsScreen.style.display = 'block';
+        userNameInput.style.display = 'block';
+        saveResultsBtn.style.display = 'block';
+        graphAccuracyDiv.style.display = 'none';
+        graphReactionDiv.style.display = 'none';
+        btnShowAccuracy.style.display = 'none';
+        btnShowReaction.style.display = 'none';
+        restartBtn.style.display = 'none';
         return;
       }
+      const p = ordem[idx];
+      document.getElementById('word').textContent = p.palavra;
+      document.getElementById('word').style.color = cores[p.cor] || 'black';
 
-      const p = perguntasAleatorias[index];
-      document.getElementById("word").textContent = p.palavra;
-      document.getElementById("word").style.color = cores[p.cor];
+      const container = document.getElementById('options');
+      container.innerHTML = '';
 
-      const opcoes = Object.keys(cores).filter(c => c !== p.cor)
-        .sort(() => Math.random() - 0.5).slice(0, 3)
-        .concat(p.cor).sort(() => Math.random() - 0.5);
+      // Embaralha as opções antes de exibi-las
+      const shuffledOptions = shuffleArray([...p.opcoes]); 
 
-      const container = document.getElementById("options");
-      container.innerHTML = "";
-      opcoes.forEach(corTexto => {
-        const btn = document.createElement("button");
-        btn.textContent = corTexto;
+      shuffledOptions.forEach(opt => { // Itera sobre as opções embaralhadas
+        const btn = document.createElement('button');
+        btn.textContent = opt;
         btn.onclick = () => {
-          tempos.push((Date.now() - startTime) / 1000);
-          palavrasRespondidas.push(p.palavra);
-          idiomasUsados.push(p.idioma);
-          index++;
-          mostrarProxima();
+          const correto = opt === p.cor;
+          acertos.push(correto);
+          tempos.push((Date.now() - start) / 1000);
+          idiomas.push(p.idioma);
+          idx++;
+          renderPergunta();
         };
         container.appendChild(btn);
       });
-
-      startTime = Date.now();
+      start = Date.now();
     }
 
-    async function salvarDados() {
-      const nome = prompt("Digite seu nome:");
-      if (!nome) {
-        alert("Nome obrigatório.");
+    /* ========= FUNÇÃO PARA SALVAR RESULTADOS NO SUPABASE ========= */
+    async function salvarResultadosNoSupabase() {
+      const nomeUsuario = userNameInput.value.trim();
+
+      if (!nomeUsuario) {
+        errorMsgElement.textContent = "Por favor, digite seu nome para salvar os resultados!";
+        errorMsgElement.style.display = 'block';
         return;
+      } else {
+        errorMsgElement.style.display = 'none';
       }
 
+      console.log('Tentando salvar resultados no Supabase para:', nomeUsuario);
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/respostas`, {
-          method: "POST",
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/respostas`, {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${SUPABASE_KEY}`
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Prefer': 'return=representation'
           },
-          body: JSON.stringify({
-            nome,
-            tempos,
-            palavras: palavrasRespondidas,
-            idiomas: idiomasUsados
-          })
+          body: JSON.stringify({ nome_usuario: nomeUsuario, tempos, idiomas, acertos })
         });
 
-        if (!res.ok) throw new Error("Erro ao salvar no Supabase");
-        mostrarResultados();
-      } catch (e) {
-        alert("Erro ao salvar os dados:\n" + e.message);
-      }
-    }
-
-    async function mostrarResultados() {
-      document.getElementById("question-container").style.display = "none";
-      document.getElementById("startBtn").style.display = "block";
-      document.getElementById("result-container").style.display = "block";
-
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/respostas?select=tempos,idiomas`, {
-          headers: {
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${SUPABASE_KEY}`
+        let data = null;
+        if (response.status !== 204) {
+          try {
+            data = await response.json();
+          } catch (jsonError) {
+            console.error('Erro ao parsear JSON da resposta:', jsonError);
+            errorMsgElement.textContent = `Erro ao processar a resposta do servidor. Código HTTP: ${response.status}. Verifique o console.`;
+            errorMsgElement.style.display = 'block';
+            return;
           }
-        });
-        const data = await res.json();
-        if (!data.length) {
-          alert("Nenhum dado disponível.");
-          return;
         }
 
-        const tempoPorIdioma = {}, contPorIdioma = {};
-        data.forEach(item => {
-          (item.tempos || []).forEach((t, i) => {
-            const idioma = item.idiomas[i] || "Desconhecido";
-            tempoPorIdioma[idioma] = (tempoPorIdioma[idioma] || 0) + t;
-            contPorIdioma[idioma] = (contPorIdioma[idioma] || 0) + 1;
-          });
-        });
+        if (!response.ok) {
+          const errorMessage = data && data.message ? data.message : `Erro desconhecido. Status: ${response.status}`;
+          console.error('Erro ao salvar resultados no Supabase:', errorMessage, data);
+          errorMsgElement.textContent = `Erro ao salvar os resultados: ${errorMessage}. Verifique o console.`;
+          errorMsgElement.style.display = 'block';
+        } else {
+          console.log('Resultados salvos com sucesso:', data);
+          alert('Resultados salvos com sucesso!');
+          exibirGraficos(tempos, idiomas, acertos);
 
-        const idiomas = Object.keys(tempoPorIdioma);
-        const medias = idiomas.map(id => +(tempoPorIdioma[id] / contPorIdioma[id]).toFixed(2));
-        desenharGrafico(idiomas, medias);
+          userNameInput.style.display = 'none';
+          saveResultsBtn.style.display = 'none';
+          errorMsgElement.style.display = 'none';
+
+          graphAccuracyDiv.style.display = 'block';
+          btnShowAccuracy.style.display = 'inline-block';
+          btnShowReaction.style.display = 'inline-block';
+          restartBtn.style.display = 'block';
+        }
       } catch (e) {
-        alert("Erro ao buscar dados.");
-        console.error(e);
+        console.error('Erro de rede ou erro inesperado ao salvar no Supabase:', e);
+        errorMsgElement.textContent = `Erro de conexão ou inesperado ao salvar: ${e.message}. Verifique o console.`;
+        errorMsgElement.style.display = 'block';
       }
     }
 
-    function desenharGrafico(labels, dados) {
-      if (chart) chart.destroy();
-      const ctx = document.getElementById("resultChart").getContext("2d");
-      chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            data: dados,
-            backgroundColor: 'rgba(66,133,244,0.8)'
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                stepSize: 0.5
+    /* ========= FUNÇÃO PARA EXIBIR GRÁFICOS ========= */
+    async function exibirGraficos(currentTempos, currentIdiomas, currentAcertos) {
+      const idiomasRespondidosContagem = {};
+      const acertosPorIdioma = {};
+      const temposPorIdioma = {}; // Armazenará { total: soma dos tempos, count: quantidade de tempos }
+
+      // Inicializa os objetos para cada idioma
+      // Note que "idiomasList" foi movido para cá para garantir que todos os idiomas relevantes sejam inicializados
+      // e que o gráfico sempre mostre os três, mesmo que não haja dados para um deles.
+      const idiomasList = ['Português', 'Alemão', 'Japonês'];
+
+      idiomasList.forEach(idioma => {
+          idiomasRespondidosContagem[idioma] = 0;
+          acertosPorIdioma[idioma] = 0;
+          temposPorIdioma[idioma] = { total: 0, count: 0 };
+      });
+
+      // Popula os dados com base nos resultados do teste
+      currentTempos.forEach((tempo, i) => {
+          const idioma = currentIdiomas[i];
+          const acerto = currentAcertos[i];
+
+          idiomasRespondidosContagem[idioma]++; // Conta quantas perguntas de cada idioma foram respondidas
+          if (acerto) {
+              acertosPorIdioma[idioma]++;
+          }
+          temposPorIdioma[idioma].total += tempo;
+          temposPorIdioma[idioma].count++;
+      });
+
+      // Calcula a porcentagem de acertos e o tempo médio para cada idioma
+      const porcentAcerto = idiomasList.map(id => {
+          const totalPerguntasIdioma = idiomasRespondidosContagem[id] || 0; // Garante que é pelo menos 0
+          return totalPerguntasIdioma > 0 ? +((acertosPorIdioma[id] / totalPerguntasIdioma) * 100).toFixed(1) : 0;
+      });
+
+      const tempoMedio = idiomasList.map(id => {
+          const { total, count } = temposPorIdioma[id];
+          return count > 0 ? +(total / count).toFixed(2) : 0;
+      });
+
+      // Gráfico de acertos
+      const ctx1 = document.getElementById('chartAccuracy').getContext('2d');
+      if (chartAcc) chartAcc.destroy();
+      chartAcc = new Chart(ctx1, {
+          type: 'bar',
+          data: {
+              labels: idiomasList,
+              datasets: [{
+                  label: 'Taxa de Acerto (%)',
+                  data: porcentAcerto,
+                  backgroundColor: 'rgba(76,175,80,0.8)'
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      max: 100,
+                      title: {
+                          display: true,
+                          text: 'Taxa de Acerto (%)'
+                      }
+                  },
+                  x: {
+                      title: {
+                          display: true,
+                          text: 'Idioma'
+                      }
+                  }
+              },
+              plugins: {
+                  legend: {
+                      display: false
+                  },
+                  title: {
+                      display: true,
+                      text: 'Taxa de Acertos por Idioma',
+                      font: {
+                          size: 16
+                      }
+                  }
               }
-            }
           }
-        }
+      });
+
+      // Gráfico de tempo médio
+      const ctx2 = document.getElementById('chartReaction').getContext('2d');
+      if (chartReact) chartReact.destroy();
+      chartReact = new Chart(ctx2, {
+          type: 'bar',
+          data: {
+              labels: idiomasList,
+              datasets: [{
+                  label: 'Tempo Médio (s)',
+                  data: tempoMedio,
+                  backgroundColor: 'rgba(66,133,244,0.8)'
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      title: {
+                          display: true,
+                          text: 'Tempo (segundos)'
+                      }
+                  },
+                  x: {
+                      title: {
+                          display: true,
+                          text: 'Idioma'
+                      }
+                  }
+              },
+              plugins: {
+                  legend: {
+                      display: false
+                  },
+                  title: {
+                      display: true,
+                      text: 'Tempo Médio de Reação por Idioma',
+                      font: {
+                          size: 16
+                      }
+                  }
+              }
+          }
       });
     }
   </script>
